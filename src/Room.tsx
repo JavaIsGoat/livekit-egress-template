@@ -19,11 +19,12 @@ import {
   LiveKitRoom,
   ParticipantTile,
   RoomAudioRenderer,
+  useConnectionState,
   useRoomContext,
   useTracks,
 } from "@livekit/components-react";
 import EgressHelper from "@livekit/egress-sdk";
-import { ConnectionState, Track } from "livekit-client";
+import { ConnectionState, RemoteTrackPublication, Track } from "livekit-client";
 import { ReactElement, useEffect, useState } from "react";
 import SingleSpeakerLayout from "./SingleSpeakerLayout";
 import SpeakerLayout from "./SpeakerLayout";
@@ -43,7 +44,12 @@ export default function RoomPage({ url, token, layout }: RoomPageProps) {
   }
 
   return (
-    <LiveKitRoom serverUrl={url} token={token} onError={setError}>
+    <LiveKitRoom
+      connectOptions={{ autoSubscribe: false }}
+      serverUrl={url}
+      token={token}
+      onError={setError}
+    >
       {error ? (
         <div className="error">{error.message}</div>
       ) : (
@@ -64,6 +70,46 @@ function CompositeTemplate({ layout: initialLayout }: CompositeTemplateProps) {
   const screenshareTracks = useTracks([Track.Source.ScreenShare], {
     onlySubscribed: true,
   });
+  const connectionState = useConnectionState();
+
+  // Subscribe to tracks
+  useEffect(() => {
+    function handlePublication(publication: RemoteTrackPublication) {
+      // Handle ai voice subscribing in voice component, ignore here
+      if (publication.trackName.includes("ai-voice")) {
+        return;
+      }
+
+      // Subscribe to all non ai voice audio tracks
+      if (publication.kind === "audio") {
+        publication.setSubscribed(true);
+      }
+
+      // TODO: Only subscribe to video tracks when in page (use pagination)
+      if (publication.kind === "video") {
+        publication.setSubscribed(true);
+      }
+    }
+
+    if (connectionState === "connected") {
+      room.remoteParticipants.forEach((participant) => {
+        participant.trackPublications.forEach((publication) => {
+          handlePublication(publication);
+        });
+      });
+    }
+
+    function onTrackPublished(publication: RemoteTrackPublication) {
+      if (connectionState === "connected") {
+        handlePublication(publication);
+      }
+    }
+
+    room.on("trackPublished", onTrackPublished);
+    return () => {
+      room.off("trackPublished", onTrackPublished);
+    };
+  }, [room, connectionState]);
 
   useEffect(() => {
     // determines when to start recording
@@ -167,7 +213,6 @@ function CompositeTemplate({ layout: initialLayout }: CompositeTemplateProps) {
 
   return (
     <div className={containerClass}>
-      <h1>Hello</h1>
       {main}
       <RoomAudioRenderer />
     </div>
