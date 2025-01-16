@@ -1,6 +1,6 @@
 {
   "name": "livekit-egress-web",
-  "homepage": "https://livekit.io",
+  "homepage": "https://javaisgoat.github.io/livekit-egress-template/",
   "description": "Default templates for RoomComposite egress",
   "version": "0.2.0",
   "private": true,
