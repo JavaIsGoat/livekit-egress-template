@@ -174,7 +174,8 @@ function CompositeTemplate({ layout: initialLayout }: CompositeTemplateProps) {
     {
       onlySubscribed: true,
     }
-  );
+  ).slice(0, 9); //only show videos of first 9 participants
+
   const filteredTracks = allTracks.filter(
     (tr) =>
       tr.publication.kind === Track.Kind.Video &&
